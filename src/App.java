@@ -20,7 +20,9 @@ public class App {
     static int quantosProdutos = 0;
 
     /** Pilha de pedidos */
-    static Pilha<Pedido> pilhaPedidos = new Pilha<>();
+    static Fila<Pedido> filaPedidos = new Fila<>();
+
+    static final int LOTE_RECENTES = 3;
         
     static void limparTela() {
         System.out.print("\033[H\033[2J");
@@ -207,13 +209,61 @@ public class App {
      * @param pedido O pedido que deve ser finalizado.
      */
     public static void finalizarPedido(Pedido pedido) {
-    	
-    	// TODO
+
+    	cabecalho();
+    	if (pedido == null) {
+    		System.out.println("Não há pedido em andamento para finalizar.");
+    		return;
+    	}
+    	filaPedidos.enfileirar(pedido);
+    	System.out.println("Pedido finalizado e enfileirado para processamento:");
+    	System.out.println(pedido);
     }
-    
+
     public static void listarProdutosPedidosRecentes() {
-    	
-    	// TODO
+
+    	cabecalho();
+    	if (filaPedidos.vazia()) {
+    		System.out.println("Não há pedidos na fila.");
+    		return;
+    	}
+
+    	Fila<Pedido> lote = filaPedidos.extrairLote(LOTE_RECENTES);
+    	System.out.println("Produtos dos " + LOTE_RECENTES + " pedidos mais antigos da fila:");
+    	while (!lote.vazia()) {
+    		Pedido pedido = lote.desenfileirar();
+    		System.out.println("\n--- Pedido " + String.format("%02d", pedido.getIdPedido()) + " ---");
+    		Produto[] produtos = pedido.getProdutos();
+    		for (int i = 0; i < pedido.getQuantosProdutos(); i++) {
+    			System.out.println(produtos[i].toString());
+    		}
+    	}
+    }
+
+    static void salvarPedidos(String nomeArquivoPedidos) {
+
+    	if (filaPedidos.vazia()) return;
+
+    	java.io.PrintWriter saida = null;
+    	try {
+    		saida = new java.io.PrintWriter(new File(nomeArquivoPedidos), Charset.forName("UTF-8"));
+    		while (!filaPedidos.vazia()) {
+    			Pedido pedido = filaPedidos.desenfileirar();
+    			StringBuilder linha = new StringBuilder();
+    			linha.append(pedido.getIdPedido()).append(';');
+    			linha.append(pedido.getDataPedido()).append(';');
+    			Produto[] produtos = pedido.getProdutos();
+    			for (int i = 0; i < pedido.getQuantosProdutos(); i++) {
+    				if (i > 0) linha.append(',');
+    				linha.append(produtos[i].hashCode());
+    			}
+    			saida.println(linha.toString());
+    		}
+    	} catch (IOException e) {
+    		System.out.println("Falha ao salvar pedidos: " + e.getMessage());
+    	} finally {
+    		if (saida != null) saida.close();
+    	}
     }
     
 	public static void main(String[] args) {
@@ -238,8 +288,9 @@ public class App {
                 case 6 -> listarProdutosPedidosRecentes();
             }
             pausa();
-        }while(opcao != 0);       
+        }while(opcao != 0);
 
-        teclado.close();    
+        salvarPedidos("pedidos.txt");
+        teclado.close();
     }
 }
